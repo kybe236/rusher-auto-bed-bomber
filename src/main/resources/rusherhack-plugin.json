@@ -1,0 +1,12 @@
+{
+  "Plugin-Class": "org.kybe.Main",
+  "Name": "Auto Bed Bomb",
+  "Version": "${plugin_version}",
+  "Description": "Auto Bed Bomb",
+  "Authors": [
+    "kybe236"
+  ],
+  "Minecraft-Versions": [
+    "1.21"
+  ]
+}
