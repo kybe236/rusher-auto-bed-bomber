@@ -11,7 +11,6 @@ import net.minecraft.world.item.enchantment.Enchantment;
 import net.minecraft.world.item.enchantment.Enchantments;
 import net.minecraft.world.level.Explosion;
 import net.minecraft.world.phys.Vec3;
-import org.rusherhack.client.api.utils.ChatUtils;
 
 public class DamageUtils {
 	private static Minecraft mc = Minecraft.getInstance();

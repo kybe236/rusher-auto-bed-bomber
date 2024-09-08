@@ -81,20 +81,6 @@ public class AutoBedBomb extends ToggleableModule {
 	public static void placeBed(BlockPos pos) {
 		if (mc.player == null || mc.level == null) return;
 
-		ChatUtils.print(
-				Component
-						.empty()
-						.append(prefix)
-						.append(Component.literal("Placing bed at " + pos))
-		);
-
-		ChatUtils.print(
-				Component
-						.empty()
-						.append(prefix)
-						.append(Component.literal("Current Item " + mc.player.getMainHandItem().getItem()))
-		);
-
 		RusherHackAPI.interactions().placeBlock(
 				pos,
 				InteractionHand.MAIN_HAND,
@@ -157,13 +143,6 @@ public class AutoBedBomb extends ToggleableModule {
 			if (target == null) {
 				return;
 			}
-			ChatUtils.print(
-					Component
-							.empty()
-							.append(prefix)
-							.append(Component.literal("Found target: "))
-							.append(target.getDisplayName())
-			);
 
 			//BlockPos placePos = findPlace(target);
 			BlockPos placePos = findPlace(target);
@@ -176,20 +155,8 @@ public class AutoBedBomb extends ToggleableModule {
 			int bedSlot = -1;
 			if (inventory.getValue()) {
 				if (isBed(mc.player.getMainHandItem().getItem())) {
-					ChatUtils.print(
-							Component
-									.empty()
-									.append(prefix)
-									.append(Component.literal("You are holding a bed"))
-					);
 				} else {
 					bedSlot = getBedInInventory();
-					ChatUtils.print(
-							Component
-									.empty()
-									.append(prefix)
-									.append(Component.literal("Bed slot: " + bedSlot))
-					);
 					if (bedSlot == -1) {
 						ChatUtils.print(
 								Component
@@ -197,6 +164,7 @@ public class AutoBedBomb extends ToggleableModule {
 										.append(prefix)
 										.append(Component.literal("No bed in inventory"))
 						);
+						this.setToggled(false);
 						return;
 					}
 					// swap items
