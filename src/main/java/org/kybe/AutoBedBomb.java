@@ -226,12 +226,12 @@ public class AutoBedBomb extends ToggleableModule {
 	public BlockPos findPlace(Player target) {
 		List<Entity> nearbyEntities = mc.level.getEntities(null, target.getBoundingBox().inflate(5));
 		int horizontalRadius = 1;
-		int verticalHeight = 5;
+		int verticalHeight = 2;
 
 		ExecutorService executor = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
 		List<Future<BlockPos>> futures = new ArrayList<>();
 
-		for (int yOffset = 0; yOffset < verticalHeight; yOffset++) {
+		for (int yOffset = -verticalHeight; yOffset < verticalHeight; yOffset++) {
 			BlockPos centerPos = target.blockPosition().above(yOffset);
 
 			for (int xOffset = -horizontalRadius; xOffset <= horizontalRadius; xOffset++) {
@@ -254,14 +254,14 @@ public class AutoBedBomb extends ToggleableModule {
 
 							if (mc.level.getBlockState(checkPos).canBeReplaced()
 									&& mc.level.getBlockState(offsetPos).canBeReplaced()
-									&& !mc.level.getBlockState(offsetPos.below()).canBeReplaced()
 									&& DamageUtils.getBedDamage(new Vec3(checkPos.getX(), checkPos.getY(), checkPos.getZ()), target) >= minDamage.getValue()
+									&& !mc.level.getBlockState(checkPos.below()).canBeReplaced()
 									&& offsetSelfDamage < maxDamage.getValue()
 									&& headSelfDamage < maxDamage.getValue()
 									&& (!antiSuicide.getValue() || mc.player.getHealth() - headSelfDamage > 5)
 									&& (!antiSuicide.getValue() || mc.player.getHealth() - offsetSelfDamage > 5)
 							) {
-								return offsetPos;
+								return checkPos;
 							}
 						}
 						return null;
