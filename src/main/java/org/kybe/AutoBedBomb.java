@@ -238,6 +238,7 @@ public class AutoBedBomb extends ToggleableModule {
 				BlockPos pos = future.get();
 				if (pos != null) {
 					result = pos;
+					checks.clear();
 					checks.add(pos);
 					checks.add(pos.relative(getPlaceFacing(pos), 1));
 					break;
@@ -308,6 +309,7 @@ public class AutoBedBomb extends ToggleableModule {
 	}
 
 
+	@Subscribe
 	public void onRender3D(EventRender3D e) {
 		final IRenderer3D renderer = e.getRenderer();
 
@@ -325,7 +327,6 @@ public class AutoBedBomb extends ToggleableModule {
 		}
 
 		renderer.end();
-		checks.clear();
 	}
 
 	@Override
