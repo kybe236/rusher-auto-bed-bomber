@@ -50,9 +50,8 @@ public class AutoBedBomb extends ToggleableModule {
 			Items.CYAN_BED, Items.LIGHT_GRAY_BED, Items.LIME_BED, Items.MAGENTA_BED, Items.ORANGE_BED,
 			Items.PURPLE_BED
 	};
+	private static final BooleanSetting rayTrace = new BooleanSetting("RayTrace", false);
 	private final List<BlockPos> checks = new ArrayList<>();
-	int blockevents = 0;
-
 	/*
 	 * Settings
 	 */
@@ -62,7 +61,9 @@ public class AutoBedBomb extends ToggleableModule {
 	private final NumberSetting<Integer> maxDamage = new NumberSetting<>("Max Self Damage", "Max Self Damage", 20, 0, 20);
 	private final BooleanSetting antiSuicide = new BooleanSetting("Anti Suicide", true);
 	private final NumberSetting<Integer> maxBlocksBreakAndPlacePerTick = new NumberSetting<>("max Blocks Break And Place Per Tick", "max Blocks Break And Place Per Tick", 5, 0, 20);
-	private static final BooleanSetting rayTrace = new BooleanSetting("RayTrace", false);
+	private final NumberSetting<Float> antiSuicideValue = new NumberSetting<>("anti Suicide alue", "if the excpected damage is more than this cancel. CALCULATIONS ARE WEARD SO MAKE IT HIGHER", 7.5f, 0f, 20f);
+	int blockevents = 0;
+	ExecutorService executor = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
 
 	public AutoBedBomb() {
 		super("Auto Bed Bomb", "Auto Bed Bomb", ModuleCategory.CLIENT);
@@ -74,6 +75,7 @@ public class AutoBedBomb extends ToggleableModule {
 				maxDamage,
 				maxBlocksBreakAndPlacePerTick,
 				antiSuicide,
+				antiSuicideValue,
 				rayTrace
 		);
 	}
@@ -123,9 +125,8 @@ public class AutoBedBomb extends ToggleableModule {
 
 	@Subscribe
 	public void onTick(EventUpdate e) {
-		if (mc.level == null || mc.player == null) return;
+		if (mc.level == null || mc.player == null || mc.gameMode == null) return;
 		try {
-			checks.clear();
 			if (mc.level.dimensionType().bedWorks()) {
 				ChatUtils.print(
 						Component
@@ -144,7 +145,6 @@ public class AutoBedBomb extends ToggleableModule {
 				return;
 			}
 
-			//BlockPos placePos = findPlace(target);
 			BlockPos placePos = findPlace(target);
 
 			if (placePos == null) {
@@ -154,8 +154,7 @@ public class AutoBedBomb extends ToggleableModule {
 
 			int bedSlot = -1;
 			if (inventory.getValue()) {
-				if (isBed(mc.player.getMainHandItem().getItem())) {
-				} else {
+				if (!isBed(mc.player.getMainHandItem().getItem())) {
 					bedSlot = getBedInInventory();
 					if (bedSlot == -1) {
 						ChatUtils.print(
@@ -174,11 +173,8 @@ public class AutoBedBomb extends ToggleableModule {
 				}
 			}
 
-			if (placePos != null) {
-				placeBed(placePos);
-				makeBedExplode(placePos);
-				checks.add(placePos);
-			}
+			placeBed(placePos);
+			makeBedExplode(placePos);
 
 			if (bedSlot != -1) {
 				mc.setScreen(new InventoryScreen(mc.player));
@@ -196,45 +192,41 @@ public class AutoBedBomb extends ToggleableModule {
 		int horizontalRadius = 1;
 		int verticalHeight = 2;
 
-		ExecutorService executor = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
 		List<Future<BlockPos>> futures = new ArrayList<>();
 
 		for (int yOffset = -verticalHeight; yOffset < verticalHeight; yOffset++) {
 			BlockPos centerPos = target.blockPosition().above(yOffset);
-
 			for (int xOffset = -horizontalRadius; xOffset <= horizontalRadius; xOffset++) {
 				final int x = xOffset;
 				for (int zOffset = -horizontalRadius; zOffset <= horizontalRadius; zOffset++) {
 					final int z = zOffset;
 
 					Callable<BlockPos> task = () -> {
-						for (Direction dir : Direction.values()) {
-							BlockPos checkPos = centerPos.offset(x, 0, z);
-							BlockPos offsetPos = checkPos.relative(dir, 1);
+						BlockPos checkPos = centerPos.offset(x, 0, z);
+						Direction dir = getPlaceFacing(checkPos);
+						BlockPos offsetPos = checkPos.relative(dir, 1);
+						boolean entityInCenter = nearbyEntities.stream().anyMatch(entity -> entity.getBoundingBox().intersects(new AABB(checkPos)));
+						boolean entityInOffset = nearbyEntities.stream().anyMatch(entity -> entity.getBoundingBox().intersects(new AABB(offsetPos)));
 
-							boolean entityInCenter = nearbyEntities.stream().anyMatch(entity -> entity.getBoundingBox().intersects(new AABB(checkPos)));
-							boolean entityInOffset = nearbyEntities.stream().anyMatch(entity -> entity.getBoundingBox().intersects(new AABB(offsetPos)));
+						if (entityInCenter || entityInOffset) return null;
 
-							if (entityInCenter || entityInOffset) continue;
+						float headSelfDamage = DamageUtils.getBedDamage(new Vec3(checkPos.getX(), checkPos.getY(), checkPos.getZ()), mc.player);
+						float offsetSelfDamage = DamageUtils.getBedDamage(new Vec3(offsetPos.getX(), offsetPos.getY(), offsetPos.getZ()), mc.player);
 
-							float headSelfDamage = DamageUtils.getBedDamage(new Vec3(checkPos.getX(), checkPos.getY(), checkPos.getZ()), mc.player);
-							float offsetSelfDamage = DamageUtils.getBedDamage(new Vec3(offsetPos.getX(), offsetPos.getY(), offsetPos.getZ()), mc.player);
-
-							if (mc.level.getBlockState(checkPos).canBeReplaced()
-									&& mc.level.getBlockState(offsetPos).canBeReplaced()
-									&& DamageUtils.getBedDamage(new Vec3(checkPos.getX(), checkPos.getY(), checkPos.getZ()), target) >= minDamage.getValue()
-									&& !mc.level.getBlockState(checkPos.below()).canBeReplaced()
-									&& offsetSelfDamage < maxDamage.getValue()
-									&& headSelfDamage < maxDamage.getValue()
-									&& (!antiSuicide.getValue() || mc.player.getHealth() - headSelfDamage > 5)
-									&& (!antiSuicide.getValue() || mc.player.getHealth() - offsetSelfDamage > 5)
-							) {
-								return checkPos;
-							}
+						if (mc.level.getBlockState(checkPos).canBeReplaced()
+								&& getDistanceToBlock(mc.player, checkPos) <= range.getValue()
+								&& mc.level.getBlockState(offsetPos).canBeReplaced()
+								&& DamageUtils.getBedDamage(new Vec3(checkPos.getX(), checkPos.getY(), checkPos.getZ()), target) >= minDamage.getValue()
+								&& !mc.level.getBlockState(checkPos.below()).canBeReplaced()
+								&& offsetSelfDamage < maxDamage.getValue()
+								&& headSelfDamage < maxDamage.getValue()
+								&& (!antiSuicide.getValue() || mc.player.getHealth() - headSelfDamage > antiSuicideValue.getValue())
+								&& (!antiSuicide.getValue() || mc.player.getHealth() - offsetSelfDamage > antiSuicideValue.getValue())
+						) {
+							return checkPos;
 						}
 						return null;
 					};
-
 					futures.add(executor.submit(task));
 				}
 			}
@@ -246,16 +238,47 @@ public class AutoBedBomb extends ToggleableModule {
 				BlockPos pos = future.get();
 				if (pos != null) {
 					result = pos;
-					break; // Stop if we find a valid position
+					checks.add(pos);
+					checks.add(pos.relative(getPlaceFacing(pos), 1));
+					break;
 				}
 			} catch (InterruptedException | ExecutionException e) {
 				e.printStackTrace();
 			}
 		}
-
-		executor.shutdown();
 		return result;
 	}
+
+
+	public double getDistanceToBlock(Player player, BlockPos blockPos) {
+		Vec3 playerPos = player.position();
+
+		Vec3 blockVec = new Vec3(blockPos.getX() + 0.5, blockPos.getY() + 0.5, blockPos.getZ() + 0.5);  // Center of the block
+
+		return playerPos.distanceTo(blockVec);
+	}
+
+	public Direction getPlaceFacing(BlockPos blockPos) {
+
+		Vec3 playerPosition = mc.player.position();
+
+		double blockX = blockPos.getX();
+		double blockZ = blockPos.getZ();
+
+		double diffX = playerPosition.x - blockX;
+		double diffZ = playerPosition.z - blockZ;
+
+		Direction direction;
+
+		if (Math.abs(diffX) > Math.abs(diffZ)) {
+			direction = diffX > 0 ? Direction.WEST : Direction.EAST;
+		} else {
+			direction = diffZ > 0 ? Direction.NORTH : Direction.SOUTH;
+		}
+
+		return direction;
+	}
+
 
 
 	public void makeBedExplode(BlockPos pos) {
@@ -273,11 +296,11 @@ public class AutoBedBomb extends ToggleableModule {
 				range.getValue()
 		);
 
-	    RusherHackAPI.interactions().useBlock(
+		RusherHackAPI.interactions().useBlock(
 				hit,
-			    InteractionHand.MAIN_HAND,
-			    rayTrace.getValue()
-	    );
+				InteractionHand.MAIN_HAND,
+				rayTrace.getValue()
+		);
 
 		mc.player.swing(InteractionHand.MAIN_HAND);
 
@@ -285,7 +308,6 @@ public class AutoBedBomb extends ToggleableModule {
 	}
 
 
-	@Subscribe
 	public void onRender3D(EventRender3D e) {
 		final IRenderer3D renderer = e.getRenderer();
 
@@ -303,7 +325,9 @@ public class AutoBedBomb extends ToggleableModule {
 		}
 
 		renderer.end();
+		checks.clear();
 	}
+
 	@Override
 	public void onEnable() {
 		blockevents = 0;
