@@ -1,13 +1,10 @@
 package org.kybe;
 
 import net.minecraft.client.Minecraft;
-import net.minecraft.core.Holder;
-import net.minecraft.core.Registry;
-import net.minecraft.core.registries.Registries;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.item.ArmorItem;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.enchantment.Enchantment;
+import net.minecraft.world.item.enchantment.EnchantmentHelper;
 import net.minecraft.world.item.enchantment.Enchantments;
 import net.minecraft.world.level.Explosion;
 import net.minecraft.world.phys.Vec3;
@@ -40,19 +37,15 @@ public class DamageUtils {
 		/*
 		 * Blast protection reduction
 		 */
-		Registry<Enchantment> enchantmentRegistry = mc.level.registryAccess().registry(Registries.ENCHANTMENT).orElseThrow();
-		Holder<Enchantment> blastprotection = enchantmentRegistry.getHolderOrThrow(Enchantments.BLAST_PROTECTION);
-
 		int blastProtectionLevel = 0;
 		for (ItemStack itemStack : armor) {
-			blastProtectionLevel += itemStack.getEnchantments().getLevel(blastprotection);
+			blastProtectionLevel += EnchantmentHelper.getItemEnchantmentLevel(Enchantments.BLAST_PROTECTION, itemStack);
 		}
 		result[0] = applyBlastProtection(result[0], blastProtectionLevel);
 
-		Holder<Enchantment> protection = enchantmentRegistry.getHolderOrThrow(Enchantments.PROTECTION);
 		int protectionLevel = 0;
 		for (ItemStack itemStack : armor) {
-			protectionLevel += itemStack.getEnchantments().getLevel(protection);
+			protectionLevel += EnchantmentHelper.getItemEnchantmentLevel(Enchantments.ALL_DAMAGE_PROTECTION, itemStack);
 		}
 		result[0] = applyProtection(result[0], protectionLevel);
 

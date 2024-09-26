@@ -61,7 +61,7 @@ public class AutoBedBomb extends ToggleableModule {
 	private final NumberSetting<Integer> maxDamage = new NumberSetting<>("Max Self Damage", "Max Self Damage", 20, 0, 20);
 	private final BooleanSetting antiSuicide = new BooleanSetting("Anti Suicide", true);
 	private final NumberSetting<Integer> maxBlocksBreakAndPlacePerTick = new NumberSetting<>("max Blocks Break And Place Per Tick", "max Blocks Break And Place Per Tick", 5, 0, 20);
-	private final NumberSetting<Float> antiSuicideValue = new NumberSetting<>("anti Suicide alue", "if the excpected damage is more than this cancel. CALCULATIONS ARE WEARD SO MAKE IT HIGHER", 7.5f, 0f, 20f);
+	private final NumberSetting<Float> antiSuicideValue = new NumberSetting<>("anti Suicide value", "if the excpected damage is more than this cancel. CALCULATIONS ARE WEARD SO MAKE IT HIGHER", 7.5f, 0f, 20f);
 	int blockevents = 0;
 	ExecutorService executor = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
 
